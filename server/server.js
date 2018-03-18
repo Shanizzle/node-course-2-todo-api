@@ -42,8 +42,6 @@ app.post('/todos', (req, res) => {
     if (!ObjectID.isValid(id)) {
       return res.status(404).send();
     }
-    console.log('User Found');
-
 
     Todo.findById(id).then((todo) => {
       if (!todo) {
