@@ -60,7 +60,7 @@ const {Todo} = require('./../models/todo');
       Todo.find().then((todos) => {
         expect(todos.length).toBe(2);
         done();
-      }).catch(e => done(e));
+      }).catch((e) => done(e));
     });
   });
 });
