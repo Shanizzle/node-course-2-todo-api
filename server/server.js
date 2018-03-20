@@ -1,3 +1,5 @@
+require('./config/config');
+
 const _ = require('lodash');
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -10,7 +12,7 @@ const {User} = require('./models/user');
 let app = express();
 
 app.use(bodyParser.json());
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 // const port = 3000;
 
 //Use post http method to create new resources(todo) and you send that resource as a body
@@ -96,7 +98,7 @@ app.post('/todos', (req, res) => {
     }).catch((e) => {
       res.status(400).send();
     })
-    
+
   });
 
 
