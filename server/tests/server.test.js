@@ -19,6 +19,7 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
       //using supertest
       request(app)
       .post('/todos')
+      .set('x-auth', users[0].tokens[0].token)
       .send({text})
       .expect(200)  //assertions
       .expect((res) => {
@@ -40,6 +41,7 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
     it('Should not create todo with invalid body data', (done) => {
       request(app)
       .post('/todos')
+      .set('x-auth', users[0].tokens[0].token)
       .send({}) // intentionally sending bad data to test
       .expect(400)
       .end((err, res) => {
@@ -59,9 +61,10 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
     it('should get all todos', (done) => {
       request(app)
       .get('/todos')
+      .set('x-auth', users[0].tokens[0].token)
       .expect(200)
       .expect((res) => {
-        expect(res.body.todos.length).toBe(2);
+        expect(res.body.todos.length).toBe(1);
       })
       .end(done);
     });
@@ -71,16 +74,27 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
       it('should return todo doc', (done) => {
         request(app) //supertest
           .get(`/todos/${todos[0]._id.toHexString()}`)
+          .set('x-auth', users[0].tokens[0].token)
           .expect(200)
           .expect((res) => {
             expect(res.body.todo.text).toBe(todos[0].text);
           })
           .end(done);
       });
+
+      it('should not return todo doc created by other user', (done) => {
+        request(app) //supertest
+          .get(`/todos/${todos[1]._id.toHexString()}`)
+          .set('x-auth', users[0].tokens[0].token)
+          .expect(404)
+          .end(done);
+      });
+
       it('should return 404 if todo not found', (done) => {
         let hexId = new ObjectID().toHexString();
         request(app)
           .get(`/todos/${hexId}`)
+          .set('x-auth', users[0].tokens[0].token)
           .expect(404)
           .end(done);
         });
@@ -88,6 +102,7 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
       it('should return 404 for non-object ids', (done) => {
         request(app)
           .get('/todos/123abc')
+          .set('x-auth', users[0].tokens[0].token)
           .expect(404)
           .end(done);
     });
@@ -95,29 +110,54 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
 
   describe('DELETE /todos/:id', () => {
     it('should remove a todo', (done) => {
-      let hexId = todos[1]._id.toHexString();
-        request(app)
-          .delete(`/todos/${hexId}`)
-          .expect(200)
-          .expect((res) => {
-            expect(res.body.todo._id).toBe(hexId);
-          })
-          .end((err, res) => {
-            if (err) {
-              return done(err);
-            }
+   var hexId = todos[1]._id.toHexString();
 
-            Todo.findById(hexId).then((todo) => {
-              expect(todo).toBeFalsy();
-              done();
-            }).catch((e) => done(e));
-          });
-    });
+   request(app)
+     .delete(`/todos/${hexId}`)
+     .set('x-auth', users[1].tokens[0].token)
+     .expect(200)
+     .expect((res) => {
+       expect(res.body.todo._id).toBe(hexId);
+     })
+     .end((err, res) => {
+       if (err) {
+         return done(err);
+       }
+
+       Todo.findById(hexId).then((todo) => {
+         expect(todo).toNotExist();
+         done();
+       }).catch((e) => done(e));
+     });
+ });
+
+ it('should not remove a todo created by another user', (done) => {
+   var hexId = todos[0]._id.toHexString();
+
+   request(app)
+     .delete(`/todos/${hexId}`)
+     .set('x-auth', users[1].tokens[0].token)
+     .expect(404)
+     .end((err, res) => {
+       if (err) {
+         return done(err);
+       }
+
+       Todo.findById(hexId).then((todo) => {
+         expect(todo).toExist();
+         done();
+       }).catch((e) => done(e));
+     });
+ });
+
+
+
     it('should return 404 if todo not found', (done) => {
-    let hexId = new ObjectID().toHexString();
+      let hexId = new ObjectID().toHexString();
 
       request(app)
         .delete(`/todos/${hexId}`)
+        .set('x-auth', users[1].tokens[0].token)
         .expect(404)
         .end(done);
     });
@@ -125,6 +165,7 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
     it('should return 404 if object ID is invalid', (done) => {
       request(app)
         .get('/todos/123abc')
+        .set('x-auth', users[1].tokens[0].token)
         .expect(404)
         .end(done);
   });
@@ -136,6 +177,7 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
       let text = 'Testing if update works';
       request(app)
         .patch(`/todos/${hexId}`)
+        .set('x-auth', users[0].tokens[0].token)
         .send({
             completed: true,
             text
@@ -147,14 +189,29 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
           expect(res.body.todo.completedAt).toBeA('number');
         })
         .end(done);
-
     });
+
+    it('should not update the todo created by another user', (done) => {
+      let hexId = todos[0]._id.toHexString();
+      let text = 'Testing if update works';
+      request(app)
+        .patch(`/todos/${hexId}`)
+        .set('x-auth', users[1].tokens[0].token)
+        .send({
+            completed: true,
+            text
+        })
+        .expect(404)
+        .end(done);
+    });
+
     it('should clear completedAt when todo is not completed', (done) => {
 
     let hexId = todos[1]._id.toHexString();
     let text = 'Testing if update works';
       request(app)
         .patch(`/todos/${hexId}`)
+        .set('x-auth', users[1].tokens[0].token)
         .send({
             completed: false,
             text
@@ -260,7 +317,7 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
         }
 
         User.findById(users[1]._id).then((user) => {
-          expect(user.tokens[0]).toInclude({
+          expect(user.tokens[1]).toInclude({
             access: 'auth',
             token: res.headers['x-auth']
           });
@@ -286,7 +343,7 @@ const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
         }
 
         User.findById(users[1]._id).then((user) => {
-          expect(user.tokens.length).toBe(0);
+          expect(user.tokens.length).toBe(1);
           done();
         }).catch((e) => done(e));
       });

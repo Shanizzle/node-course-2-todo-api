@@ -16,7 +16,14 @@ let Todo = mongoose.model('Todo', {
   completedAt: {
     type: Number,
     default: null
+  },
+  // creating a reference to the user who created the todo
+  _creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
   }
 });
+
+
 
 module.exports = {Todo};
